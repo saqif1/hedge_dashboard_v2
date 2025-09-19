@@ -694,6 +694,5 @@ with tab5:
 # 🧾 Footer
 # ============================
 st.markdown("---")
-st.markdown("**Disclaimer**: This is a simulated dashboard for educational purposes. Actual trading decisions should be based on real-time data and professional advice.")
 st.sidebar.divider()
 st.sidebar.caption("LME Copper Hedging Dashboard v2.0")
