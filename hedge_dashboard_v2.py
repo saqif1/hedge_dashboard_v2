@@ -27,7 +27,7 @@ exposure_mt = st.sidebar.number_input(
     max_value=max_mt,
     value=min(25000, max_mt),  # Default to 25,000 MT or max, whichever is smaller
     step=25,  # Step by 1 lot equivalent (25 tons)
-    help=f"Maximum possible based on capital: {max_mt:,} MT"
+    help=f"Maximum possible based on capital: {max_mt:,} ton"
 )
 
 # Calculate lots from MT exposure
