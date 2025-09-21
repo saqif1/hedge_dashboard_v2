@@ -5,14 +5,13 @@ import plotly.graph_objects as go
 # Dashboard Title & Description
 # ----------------------------
 st.set_page_config(page_title="Copper Short Hedge Dashboard", layout="wide")
-st.logo("logo.png")
 st.title("Margin Call Risk Manager for Copper Futures Shorts")
 
 # ----------------------------
 # Sidebar Inputs
 # ----------------------------
-st.sidebar.header("📊 Input Parameters")
-
+st.sidebar.image("logo2.png")
+st.sidebar.header("Input Parameters")
 cost_per_lot = st.sidebar.number_input("Initial Margin (USD/lot)", value=20000.0, step=1000.0)
 lot_size_ton = st.sidebar.number_input("Lot Size (Tons)", value=25.0, step=1.0)
 max_capital = st.sidebar.number_input("Max Capital for Futures (USD)", value=29200000.0, step=100000.0)
