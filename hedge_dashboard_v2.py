@@ -213,7 +213,6 @@ if total_loss_hedged < total_loss_unhedged and hedged_remaining > 0:
     st.success(f"""
     ✅ **Strong Buy: Call Options Are Worth It**
     - Caps your max loss at **\\${hedged_loss_per_ton:,.0f}/ton** instead of **\\${loss_per_ton_unhedged:,.0f}/ton**.
-    - Prevents broker from forcing liquidation.
     - Cost of insurance **(\\${total_option_cost:,.0f})** is small vs loss avoided **(\\${total_loss_unhedged - total_loss_hedged:,.0f})**.
     """)
 elif total_loss_hedged < total_loss_unhedged:
