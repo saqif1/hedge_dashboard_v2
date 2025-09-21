@@ -12,7 +12,7 @@ st.title("Margin Call Risk Manager for Copper Futures Shorts")
 # ----------------------------
 st.sidebar.header("📊 Input Parameters")
 
-cost_per_lot = st.sidebar.number_input("Cost per Future Lot (USD)", value=20000.0, step=1000.0)
+cost_per_lot = st.sidebar.number_input("Initial Margin (USD/lot)", value=20000.0, step=1000.0)
 lot_size_ton = st.sidebar.number_input("Lot Size (Tons)", value=25.0, step=1.0)
 max_capital = st.sidebar.number_input("Max Capital for Futures (USD)", value=29200000.0, step=100000.0)
 
