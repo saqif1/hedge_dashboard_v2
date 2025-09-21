@@ -166,7 +166,7 @@ with col6:
     if unhedged_remaining < 0:
         st.error(f"🚨 WITHOUT HEDGE: Margin call! You're short ${abs(unhedged_remaining):,.0f}")
     else:
-        st.success(f"✅ WITHOUT HEDGE: ${unhedged_remaining:,.0f} buffer remains — SAFE from margin call")
+        st.error(f"WITHOUT HEDGE: ${unhedged_remaining:,.0f} buffer remains")
 
 with col7:
     st.markdown(f"**Breakdown of Strategy 2: Short Futures Position with a Long Call Hedge**")
@@ -180,7 +180,7 @@ with col7:
     if hedged_remaining < 0:
         st.error(f"🚨 WITH HEDGE: Still a shortfall of ${abs(hedged_remaining):,.0f} — reduce size or adjust strike")
     else:
-        st.success(f"✅ WITH HEDGE: ${hedged_remaining:,.0f} capital buffer remains — SAFE from margin call")
+        st.success(f"WITH HEDGE: ${hedged_remaining:,.0f} capital buffer remains")
 
 # ----------------------------
 # Option Effectiveness Analysis
