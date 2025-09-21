@@ -95,10 +95,10 @@ effective_max_loss_price = entry_price + hedged_loss_per_ton
 st.header(f"📉 Loss Exposure at ${worst_case_price:,.0f} Copper Price")
 
 col1, col2, col3 = st.columns(3)
-col1.metric("Short Exposure", f"{exposure_mt:,.0f} MT", f"{actual_lots_used:,.0f} lots")
+col1.metric("Short Exposure", f"{exposure_mt:,.0f} ton", f"{actual_lots_used:,.0f} lots")
 col2.metric("Loss/Ton (No Hedge)", f"${loss_per_ton_unhedged:,.0f}", delta="Danger", delta_color="inverse")
 col3.metric("Loss/Ton (With Hedge)", f"${hedged_loss_per_ton:,.0f}", delta="Protected", delta_color="normal")
-col3.metric("Effective Max Loss Price", f"${effective_max_loss_price:,.0f}/ton", delta="Capped", delta_color="normal")
+#col3.metric("Effective Max Loss Price", f"${effective_max_loss_price:,.0f}/ton", delta="Capped", delta_color="normal")
 
 st.markdown("---")
 
