@@ -180,36 +180,6 @@ with col7:
         st.success(f"✅ WITH HEDGE: ${hedged_remaining:,.0f} capital buffer remains — SAFE from margin call")
 
 # ----------------------------
-# Position Size Analysis - FIXED (No double counting)
-# ----------------------------
-
-st.header("🔍 Position Size Analysis")
-
-# Calculate what size would be safe with hedge - FIXED formula
-if hedged_remaining < 0:
-    # FIXED: No double counting of premium
-    safe_mt = int(max_capital / hedged_loss_per_ton)
-    safe_mt = min(max_mt, max(safe_mt, 0))
-    safe_mt = (safe_mt // 25) * 25  # Round down to nearest lot
-    
-    st.warning(f"""
-    ⚠️ **Position Too Large**
-    - With current hedge parameters, a safe position size would be **{safe_mt:,.0f} MT** or less.
-    - Adjust your exposure to **{safe_mt:,.0f} MT** to avoid margin call.
-    """)
-else:
-    # FIXED: No double counting of premium
-    additional_mt = int(hedged_remaining / hedged_loss_per_ton)
-    additional_mt = (additional_mt // 25) * 25  # Round to nearest lot
-    potential_total_mt = exposure_mt + additional_mt
-    
-    st.success(f"""
-    ✅ **Position Size is Manageable**
-    - Current size of **{exposure_mt:,.0f} MT** leaves a comfortable buffer.
-    - You could potentially increase size to **{min(max_mt, potential_total_mt):,.0f} MT** and still be safe.
-    """)
-
-# ----------------------------
 # Option Effectiveness Analysis
 # ----------------------------
 
