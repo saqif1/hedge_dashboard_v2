@@ -160,7 +160,7 @@ col6, col7 = st.columns(2)
 with col6:
     st.markdown(f"**Breakdown with No Options Hedge:**")
     st.markdown(f"- Initial Capital: **${max_capital:,.0f}**")
-    st.markdown(f"- Minus Unhedged Loss: **${total_loss_unhedged:,.0f}**")
+    st.markdown(f"- Minus Short Futures Loss: **${total_loss_unhedged:,.0f}**")
     st.markdown(f"→ Remaining Capital: **${unhedged_remaining:,.0f}**")
     
     if unhedged_remaining < 0:
@@ -171,6 +171,8 @@ with col6:
 with col7:
     st.markdown(f"**Breakdown with Options Hedge:**")
     st.markdown(f"- Initial Capital: **${max_capital:,.0f}**")
+    st.markdown(f"- Minus Short Futures Loss: **${total_loss_unhedged:,.0f}**")
+    st.markdown(f"- Add Call Option Gains at Maturity{hedged_loss_per_ton * total_tons}")
     st.markdown(f"- Total Loss (Futures + Options): **${total_loss_hedged:,.0f}**")
     st.markdown(f"→ Remaining Capital: **${hedged_remaining:,.0f}**")
     
