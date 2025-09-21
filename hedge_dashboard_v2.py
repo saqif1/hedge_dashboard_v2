@@ -10,7 +10,7 @@ st.title("Margin Call Risk Manager for Copper Futures Shorts")
 # ----------------------------
 # Sidebar Inputs
 # ----------------------------
-st.sidebar.image("logo2.png")
+st.sidebar.image("logo.png")
 st.sidebar.header("Input Parameters")
 cost_per_lot = st.sidebar.number_input("Initial Margin (USD/lot)", value=20000.0, step=1000.0)
 lot_size_ton = st.sidebar.number_input("Lot Size (Tons)", value=25.0, step=1.0)
