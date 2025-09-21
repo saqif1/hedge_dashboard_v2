@@ -174,7 +174,7 @@ with col7:
     st.markdown(f"- Minus Short Futures Loss: **${total_loss_unhedged:,.0f}**")
     st.markdown(f"- Add Call Option Gains at Maturity: **${(option_gain_per_ton * total_tons):,.0f}**")
     st.markdown(f"- Minus Call Option Premiums: **${(option_premium_per_ton * total_tons):,.0f}**")
-    st.markdown(f"- Total Loss (Futures + Options): **${total_loss_hedged:,.0f}**")
+    #st.markdown(f"- Total Loss (Futures + Options): **${total_loss_hedged:,.0f}**")
     st.markdown(f"→ Remaining Capital: **${hedged_remaining:,.0f}**")
     
     if hedged_remaining < 0:
