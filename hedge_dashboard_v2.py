@@ -41,8 +41,8 @@ if worst_case_price <= entry_price:
     st.sidebar.warning("Worst case price should be higher than entry price for short position analysis")
 
 # Optional: Physical price for context only
-physical_price = st.sidebar.number_input("Physical Copper Price (Reference Only, USD/ton)", value=9500.0, step=10.0)
-st.sidebar.caption("💡 Physical price doesn't affect futures margin — shown for context only.")
+# physical_price = st.sidebar.number_input("Physical Copper Price (Reference Only, USD/ton)", value=9500.0, step=10.0)
+# st.sidebar.caption("💡 Physical price doesn't affect futures margin — shown for context only.")
 
 # Option parameters
 st.sidebar.subheader("Protective Call Option (to hedge short futures)")
