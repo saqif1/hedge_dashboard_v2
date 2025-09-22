@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 # Dashboard Title & Description
 # ----------------------------
 st.set_page_config(page_title="Copper Short Hedge Dashboard", layout="wide")
-st.title("Scenario Analyser on Future Shorts Hedged with Call Option")
+st.title("Scenario Analyser on Future Shorts Hedged with Collar Strategy")
 
 # ----------------------------
 # Sidebar Inputs
@@ -40,18 +40,19 @@ worst_case_price = st.sidebar.number_input("Worst Case Price (USD/ton)", value=1
 if worst_case_price <= entry_price:
     st.sidebar.warning("Worst case price should be higher than entry price for short position analysis")
 
-# Optional: Physical price for context only
-# physical_price = st.sidebar.number_input("Physical Copper Price (Reference Only, USD/ton)", value=9500.0, step=10.0)
-# st.sidebar.caption("💡 Physical price doesn't affect futures margin — shown for context only.")
+# Option parameters — UPDATED FOR COLLAR
+st.sidebar.subheader("Collar Strategy: Buy Call + Sell Put")
+strike_price_call = st.sidebar.number_input("Call Option Strike Price (USD/ton)", value=10500.0, step=50.0)
+premium_call_per_ton = st.sidebar.number_input("Call Option Premium Paid (USD/ton)", value=200.0, step=10.0)
 
-# Option parameters
-st.sidebar.subheader("Protective Call Option (to hedge short futures)")
-strike_price = st.sidebar.number_input("Call Option Strike Price (USD/ton)", value=10500.0, step=50.0)
-option_premium_per_ton = st.sidebar.number_input("Option Premium (USD/ton)", value=200.0, step=10.0)
+strike_price_put = st.sidebar.number_input("Put Option Strike Price (USD/ton)", value=9500.0, step=50.0)
+premium_put_per_ton = st.sidebar.number_input("Put Option Premium Received (USD/ton)", value=150.0, step=10.0)
 
-# Add strike price validation
-if strike_price < entry_price:
-    st.sidebar.warning("⚠️ Strike price below entry — hedge only protects above strike, not from entry to strike!")
+# Add strike price validations
+if strike_price_call < entry_price:
+    st.sidebar.warning("⚠️ Call strike below entry — only protects above call strike!")
+if strike_price_put > entry_price:
+    st.sidebar.warning("⚠️ Put strike above entry — exposes you to downside below put strike!")
 
 # ----------------------------
 # Calculations
@@ -61,32 +62,39 @@ total_tons = exposure_mt
 capital_used = actual_lots_used * cost_per_lot
 
 # Unhedged loss
-loss_per_ton_unhedged = worst_case_price - entry_price  # e.g., 11550 - 10130 = 1420
+loss_per_ton_unhedged = worst_case_price - entry_price
 total_loss_unhedged = loss_per_ton_unhedged * total_tons
 
-# FIXED: Hedged loss with call option - proper calculation
-if worst_case_price > strike_price:
-    # Option provides protection: gain = (market_price - strike_price)
-    option_gain_per_ton = worst_case_price - strike_price
+# Collar strategy calculations
+net_option_premium_per_ton = premium_call_per_ton - premium_put_per_ton
+
+# Initialize variables
+option_gain_call_per_ton = 0
+
+if worst_case_price > strike_price_call:
+    # Call is ITM → gain offsets futures loss
+    option_gain_call_per_ton = worst_case_price - strike_price_call
     futures_loss_per_ton = worst_case_price - entry_price
-    hedged_loss_per_ton = futures_loss_per_ton - option_gain_per_ton + option_premium_per_ton
+    hedged_loss_per_ton = futures_loss_per_ton - option_gain_call_per_ton + net_option_premium_per_ton
+elif worst_case_price < strike_price_put:
+    # Put is ITM → you're forced to sell at put strike
+    effective_market_price = strike_price_put
+    futures_loss_per_ton = effective_market_price - entry_price
+    hedged_loss_per_ton = futures_loss_per_ton + net_option_premium_per_ton
 else:
-    # Option expires worthless, only premium paid
-    hedged_loss_per_ton = (worst_case_price - entry_price) + option_premium_per_ton
+    # Between strikes → no option payoff, only pay net premium
+    futures_loss_per_ton = worst_case_price - entry_price
+    hedged_loss_per_ton = futures_loss_per_ton + net_option_premium_per_ton
 
 total_loss_hedged = hedged_loss_per_ton * total_tons
-total_option_cost = option_premium_per_ton * total_tons
 
-# Calculate option intrinsic value and effectiveness
-if worst_case_price > strike_price:
-    option_intrinsic_value = worst_case_price - strike_price
-    protection_effectiveness = option_intrinsic_value / loss_per_ton_unhedged
+# Calculate effectiveness metrics
+if worst_case_price > strike_price_call:
+    option_intrinsic_value = worst_case_price - strike_price_call
+    protection_effectiveness = option_intrinsic_value / loss_per_ton_unhedged if loss_per_ton_unhedged > 0 else 0
 else:
     option_intrinsic_value = 0
     protection_effectiveness = 0
-
-# Calculate effective max loss price
-effective_max_loss_price = entry_price + hedged_loss_per_ton
 
 # ----------------------------
 # Display Results
@@ -97,21 +105,23 @@ st.header(f"📉 Loss Exposure at ${worst_case_price:,.0f} Copper Price")
 col1, col2, col3 = st.columns(3)
 col1.metric("Short Exposure", f"{exposure_mt:,.0f} ton", f"{actual_lots_used:,.0f} lots")
 col2.metric("Loss/Ton (No Hedge)", f"${loss_per_ton_unhedged:,.0f}", delta="Danger", delta_color="inverse")
-col3.metric("Loss/Ton (With Hedge)", f"${hedged_loss_per_ton:,.0f}", delta="Protected", delta_color="normal")
-#col3.metric("Effective Max Loss Price", f"${effective_max_loss_price:,.0f}/ton", delta="Capped", delta_color="normal")
+col3.metric("Loss/Ton (With Collar)", f"${hedged_loss_per_ton:,.0f}", delta="Capped", delta_color="normal")
 
 st.markdown("---")
 
 col4, col5 = st.columns(2)
 col4.metric("Total Loss (Unhedged)", f"${total_loss_unhedged:,.0f}", delta="Margin Call Risk", delta_color="inverse")
-col5.metric("Total Loss (Hedged)", f"${total_loss_hedged:,.0f}", delta="Controlled", delta_color="off")
+col5.metric("Total Loss (With Collar)", f"${total_loss_hedged:,.0f}", delta="Controlled", delta_color="off")
 
+# Net cost of collar
+net_premium_cost = net_option_premium_per_ton * total_tons
 st.info(f"""
-💰 **Hedging Cost & Benefit**
-- You pay **${total_option_cost:,.0f}** in option premiums.
-- Option intrinsic value at **\\${worst_case_price:,.0f}**: **\\${option_intrinsic_value:,.0f}/ton**
+💰 **Collar Strategy Cost & Benefit**
+- Paid for Call: **${premium_call_per_ton * total_tons:,.0f}**
+- Received from Put: **${premium_put_per_ton * total_tons:,.0f}**
+- Net Option Flow: **${net_premium_cost:,.0f}** (positive = cash inflow!)
 - Your loss is reduced by **\\${total_loss_unhedged - total_loss_hedged:,.0f}**.
-- Total cash outflow with hedge: **\\${total_loss_hedged:,.0f}** (includes premium)
+- Total cash outflow with collar: **\\${total_loss_hedged:,.0f}**
 """)
 
 # ----------------------------
@@ -128,7 +138,7 @@ fig = go.Figure(data=[
         textposition='auto'
     ),
     go.Bar(
-        name='Hedged Loss',
+        name='Hedged Loss (Collar)',
         x=['Scenario'],
         y=[total_loss_hedged],
         marker_color='mediumseagreen',
@@ -137,7 +147,7 @@ fig = go.Figure(data=[
     )
 ])
 fig.update_layout(
-    title="Total Portfolio Loss: Hedged vs Unhedged",
+    title="Total Portfolio Loss: Collar vs Unhedged",
     yaxis_title="Loss (USD)",
     template="plotly_white",
     showlegend=True,
@@ -146,14 +156,13 @@ fig.update_layout(
 st.plotly_chart(fig, use_container_width=True)
 
 # ----------------------------
-# Margin Safety Check — FIXED (No double counting)
+# Margin Safety Check
 # ----------------------------
 
-st.header("⚠️ Margin Call Risk — CAPITAL AFTER HEDGE")
+st.header("⚠️ Margin Call Risk — CAPITAL AFTER COLLAR")
 
-# FIXED: hedged_remaining no longer double-counts option premium
 unhedged_remaining = max_capital - total_loss_unhedged
-hedged_remaining = max_capital - total_loss_hedged  # total_loss_hedged already includes option cost
+hedged_remaining = max_capital - total_loss_hedged
 
 col6, col7 = st.columns(2)
 
@@ -166,42 +175,47 @@ with col6:
     if unhedged_remaining < 0:
         st.error(f"🚨 WITHOUT HEDGE: Margin call! You're short ${abs(unhedged_remaining):,.0f}")
     else:
-        st.error(f"WITHOUT HEDGE: ${unhedged_remaining:,.0f} capital buffer remains")
+        st.success(f"WITHOUT HEDGE: ${unhedged_remaining:,.0f} capital buffer remains")
 
 with col7:
-    st.markdown(f"**Breakdown of Strategy 2**: Short Futures Position hedged with a Long Call")
+    st.markdown(f"**Breakdown of Strategy 2**: Short Futures + Collar (Call + Put)")
     st.markdown(f"- Initial Capital: **${max_capital:,.0f}**")
     st.markdown(f"- Minus Short Futures Loss: **${total_loss_unhedged:,.0f}**")
-    st.markdown(f"- Add Call Option Intrinsic Value Gain: **${(option_gain_per_ton * total_tons):,.0f}**")
-    st.markdown(f"- Minus Call Option Premiums: **${(option_premium_per_ton * total_tons):,.0f}**")
-    #st.markdown(f"- Total Loss (Futures + Options): **${total_loss_hedged:,.0f}**")
+    if worst_case_price > strike_price_call:
+        st.markdown(f"- Add Call Intrinsic Gain: **${(option_gain_call_per_ton * total_tons):,.0f}**")
+    st.markdown(f"- Net Option Premium Flow: **${net_premium_cost:,.0f}**")
     st.markdown(f"→ Remaining Capital: **${hedged_remaining:,.0f}**")
     
     if hedged_remaining < 0:
-        st.error(f"🚨 WITH HEDGE: Still a shortfall of ${abs(hedged_remaining):,.0f} — reduce size or adjust strike")
+        st.error(f"🚨 WITH COLLAR: Still a shortfall of ${abs(hedged_remaining):,.0f}")
     else:
-        st.success(f"WITH HEDGE: ${hedged_remaining:,.0f} capital buffer remains")
+        st.success(f"WITH COLLAR: ${hedged_remaining:,.0f} capital buffer remains")
 
 # ----------------------------
-# Option Effectiveness Analysis
+# Collar Effectiveness Analysis
 # ----------------------------
 
-st.header("📊 Option Effectiveness")
+st.header("📊 Collar Effectiveness")
 
-if worst_case_price > strike_price:
+if worst_case_price > strike_price_call:
     st.success(f"""
-    🛡️ **Option is In-The-Money (ITM)**
-    - Strike: **\\${strike_price:,.0f}** vs Market: **\\${worst_case_price:,.0f}**
-    - Intrinsic Value: **\\${option_intrinsic_value:,.0f}/ton**
-    - Protection Coverage: {protection_effectiveness:.1%} of potential loss
+    🛡️ **Call is In-The-Money (ITM)**
+    - Strike: **\\${strike_price_call:,.0f}** vs Market: **\\${worst_case_price:,.0f}**
+    - Intrinsic Value: **\\${option_gain_call_per_ton:,.0f}/ton**
     """)
 else:
-    st.warning(f"""
-    ⚠️ **Option is Out-The-Money (OTM)**
-    - Strike: **\\${strike_price:,.0f}** vs Market: **\\${worst_case_price:,.0f}**
-    - Provides no intrinsic value protection
-    - Only protects against catastrophic moves above strike price
+    st.info(f"🟢 **Call is Out-of-the-Money (OTM)** — No payoff.")
+
+if worst_case_price < strike_price_put:
+    st.success(f"""
+    🔒 **Put is In-The-Money (ITM)**
+    - Strike: **\\${strike_price_put:,.0f}** vs Market: **\\${worst_case_price:,.0f}**
+    - Downside capped at **\\${strike_price_put:,.0f}**
     """)
+else:
+    st.info(f"🟢 **Put is Out-of-the-Money (OTM)** — No obligation.")
+
+st.caption(f"🎯 Protection Range: **{strike_price_put:,.0f}** to **{strike_price_call:,.0f} USD/ton**")
 
 # ----------------------------
 # Recommendation
@@ -211,26 +225,25 @@ st.header("🎯 Strategic Recommendation")
 
 if total_loss_hedged < total_loss_unhedged and hedged_remaining > 0:
     st.success(f"""
-    ✅ **Strong Buy: Call Options Are Worth It**
-    - Caps your max loss at **\\${hedged_loss_per_ton:,.0f}/ton** instead of **\\${loss_per_ton_unhedged:,.0f}/ton**.
-    - Cost of insurance **(\\${total_option_cost:,.0f})** is small vs loss avoided **(\\${total_loss_unhedged - total_loss_hedged:,.0f})**.
+    ✅ **Strong Buy: Collar Is Effective**
+    - Caps your loss at **\\${hedged_loss_per_ton:,.0f}/ton** instead of **\\${loss_per_ton_unhedged:,.0f}/ton**.
+    - Net option flow: **${net_premium_cost:,.0f}** (you may even earn money).
+    - Ideal for volatile markets where you want limited downside and capped upside.
     """)
 elif total_loss_hedged < total_loss_unhedged:
     st.warning(f"""
     ⚠️ **Hedge Helps But Capital Is Tight**
-    - You avoid catastrophic loss, but option cost pushes you near/below zero capital.
-    → Try: Higher strike price, reduce position size, or both.
+    - You avoid catastrophic moves, but net premium doesn't fully cover losses.
+    → Try: Adjust strikes, reduce size, or increase put premium.
     """)
 else:
-    st.error("❌ Current option parameters do not help — adjust strike or premium.")
+    st.error("❌ Current collar does not improve outcome — adjust strikes or premiums.")
 
 # ----------------------------
 # Footer Note
 # ----------------------------
 
-# Footer
 st.markdown("---")
-# LinkedIN
 st.markdown("### Connect with Me!")
 
 st.markdown("""
