@@ -150,17 +150,15 @@ if calculate_pressed:
         col1.metric(
             "Futures Position",
             futures_position,
-            delta="↑ Long",
-            delta_color="normal",  # Green
-            help=f"Entry Price: ${entry_price:,.0f}"
+            delta="↑ Entry Price: ${entry_price:,.0f}",
+            delta_color="normal"  # Green
         )
     else:  # Short
         col1.metric(
             "Futures Position",
             futures_position,
-            delta="↓ Short",
-            delta_color="inverse",  # Red
-            help=f"Entry Price: ${entry_price:,.0f}"
+            delta="↓ Entry Price: ${entry_price:,.0f}",
+            delta_color="inverse"  # Red
         )
 
     unhedged_color = "inverse" if futures_pnl_per_ton < 0 else "normal"
