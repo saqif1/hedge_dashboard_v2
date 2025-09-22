@@ -228,7 +228,6 @@ if total_loss_hedged < total_loss_unhedged and hedged_remaining > 0:
     ✅ **Strong Buy: Collar Is Effective**
     - Caps your loss at **\\${hedged_loss_per_ton:,.0f}/ton** instead of **\\${loss_per_ton_unhedged:,.0f}/ton**.
     - Net option flow: **${net_premium_cost:,.0f}** (you may even earn money).
-    - Ideal for volatile markets where you want limited downside and capped upside.
     """)
 elif total_loss_hedged < total_loss_unhedged:
     st.warning(f"""
