@@ -11,6 +11,7 @@ st.title("Advanced Options Strategy Analyser for Futures Positions")
 # Sidebar Inputs
 # ----------------------------
 st.sidebar.header("Basic Parameters")
+st.logo("logo.png")
 cost_per_lot = st.sidebar.number_input("Initial Margin (USD/lot)", value=20000.0, step=1000.0)
 lot_size_ton = st.sidebar.number_input("Lot Size (Tons)", value=25.0, step=1.0)
 max_capital = st.sidebar.number_input("Max Capital for Futures (USD)", value=29200000.0, step=100000.0)
