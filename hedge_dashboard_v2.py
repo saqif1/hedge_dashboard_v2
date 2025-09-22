@@ -82,7 +82,7 @@ for i in range(1, 3):
 # CALCULATE BUTTON
 # ----------------------------
 st.sidebar.markdown("---")
-calculate_pressed = st.sidebar.button("🧮 Calculate Strategy P&L", use_container_width=True)
+calculate_pressed = st.sidebar.button("🧮 Calculate P&L", use_container_width=True)
 
 # ----------------------------
 # DYNAMIC STRATEGY CALCULATIONS & DISPLAY
@@ -200,7 +200,7 @@ if calculate_pressed:
     st.plotly_chart(fig, use_container_width=True)
 
 else:
-    st.info("👈 Configure your strategy in the sidebar, then click **🧮 Calculate Strategy P&L** to see the full analysis.")
+    st.info("👈 Configure your strategy in the sidebar, then click **🧮 Calculate P&L** to see the full analysis.")
 
 st.markdown("---")
 st.markdown("### Connect with Me!")
