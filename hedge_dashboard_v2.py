@@ -169,7 +169,7 @@ with col6:
         st.error(f"WITHOUT HEDGE: ${unhedged_remaining:,.0f} capital buffer remains")
 
 with col7:
-    st.markdown(f"**Breakdown of Strategy 2**: Short Futures Position Hedged with a Long Call")
+    st.markdown(f"**Breakdown of Strategy 2**: Short Futures Position hedged with a Long Call")
     st.markdown(f"- Initial Capital: **${max_capital:,.0f}**")
     st.markdown(f"- Minus Short Futures Loss: **${total_loss_unhedged:,.0f}**")
     st.markdown(f"- Add Call Option Intrinsic Value Gain: **${(option_gain_per_ton * total_tons):,.0f}**")
