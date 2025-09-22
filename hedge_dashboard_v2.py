@@ -43,12 +43,12 @@ if worst_case_price <= entry_price:
 # Option parameters — UPDATED FOR COLLAR
 st.sidebar.subheader("Collar Strategy: Buy Call + Sell Put")
 strike_price_call = st.sidebar.number_input("Call Option Strike Price (USD/ton)", value=10350.0, step=50.0)
-premium_call_per_ton = st.sidebar.number_input("Call Option Premium Paid (USD/lot)", value=4151.64, step=10.0)
-premium_call_per_ton = premium_call_per_ton/lot_size_ton
+premium_call_per_lot = st.sidebar.number_input("Call Option Premium Paid (USD/lot)", value=4151.64, step=10.0)
+premium_call_per_ton = premium_call_per_lot / lot_size_ton
 
 strike_price_put = st.sidebar.number_input("Put Option Strike Price (USD/ton)", value=9270.0, step=50.0)
-premium_put_per_ton = st.sidebar.number_input("Put Option Premium Received (USD/lot)", value=1840.88, step=10.0)
-premium_put_per_ton = premium_put_per_ton/lot_size_ton
+premium_put_per_lot = st.sidebar.number_input("Put Option Premium Received (USD/lot)", value=1840.88, step=10.0)
+premium_put_per_ton = premium_put_per_lot / lot_size_ton
 
 # Add strike price validations
 if strike_price_call < entry_price:
@@ -69,6 +69,7 @@ total_loss_unhedged = loss_per_ton_unhedged * total_tons
 
 # Collar strategy calculations
 net_option_premium_per_ton = premium_call_per_ton - premium_put_per_ton
+net_option_premium_per_lot = premium_call_per_lot - premium_put_per_lot
 
 # Initialize variables
 option_gain_call_per_ton = 0
@@ -119,14 +120,16 @@ col4, col5 = st.columns(2)
 col4.metric("Total Loss (Unhedged)", f"${total_loss_unhedged:,.0f}", delta="Margin Call Risk", delta_color="inverse")
 col5.metric("Net P&L (With Collar)", f"${total_loss_hedged:,.0f}", delta="Controlled", delta_color="off")
 
-# Net cost of collar
-net_premium_cost = net_option_premium_per_ton * total_tons
+# Net cost of collar - FIXED CALCULATION
+net_premium_cost_per_ton = net_option_premium_per_ton * total_tons
+net_premium_cost_per_lot = net_option_premium_per_lot * actual_lots_used
+
 st.info(f"""
 💰 **Collar Strategy Cost & Benefit**
-- Paid for Call: **${premium_call_per_ton * total_tons:,.0f}**
-- Received from Put: **${premium_put_per_ton * total_tons:,.0f}**
-- Net Option Flow: **${net_premium_cost:,.0f}** (positive = cash inflow!)
-- Your outcome changed by **\\${total_loss_unhedged - total_loss_hedged:,.0f}**.
+- Paid Premiums for Call: **\\${premium_call_per_lot * actual_lots_used:,.0f}** (\\${premium_call_per_ton:,.2f}/ton)
+- Received Premiums from Put: **\\${premium_put_per_lot * actual_lots_used:,.0f}** (\\${premium_put_per_ton:,.2f}/ton)
+- Net Option Premiums Flow: **\\${net_premium_cost_per_lot:,.0f}** (\\${net_option_premium_per_ton:,.2f}/ton)
+- You save **\\${total_loss_unhedged - total_loss_hedged:,.0f}**.
 - Total net P&L with collar: **\\${total_loss_hedged:,.0f}**
 """)
 
@@ -196,7 +199,7 @@ with col7:
     else:
         st.markdown(f"- Short Futures Loss: **${(worst_case_price - entry_price) * total_tons:,.0f}**")
     
-    st.markdown(f"+ Net Option Premium Flow: **${net_premium_cost:,.0f}**")
+    st.markdown(f"+ Net Option Premium Flow: **${net_premium_cost_per_lot:,.0f}**")
     st.markdown(f"→ Remaining Capital: **${hedged_remaining:,.0f}**")
     
     if hedged_remaining < 0:
@@ -240,7 +243,7 @@ if total_loss_hedged < total_loss_unhedged and hedged_remaining > 0:
     st.success(f"""
     ✅ **Strong Buy: Collar Is Effective**
     - Improves your outcome by **\\${total_loss_unhedged - total_loss_hedged:,.0f}** vs unhedged.
-    - Net option flow: **${net_premium_cost:,.0f}**.
+    - Net option flow: **${net_premium_cost_per_lot:,.0f}**.
     """)
 elif total_loss_hedged < total_loss_unhedged:
     st.warning(f"""
