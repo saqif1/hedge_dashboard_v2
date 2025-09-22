@@ -130,12 +130,15 @@ if calculate_pressed:
 
     # Convert to totals
     total_futures_pnl = futures_pnl_per_ton * total_tons
-    total_option_payoff = total_option_payoff_per_ton * total_tons
+    total_option_payoff = total_option_payoff_per_ton * total_tons  # 🆕 This is the missing piece!
     total_premium_flow = total_premium_flow_per_ton * total_tons
     total_strategy_pnl = strategy_pnl_per_ton * total_tons
 
     # Check if both options are inactive
     both_options_none = all(opt["position"] == "none" for opt in options_config)
+
+    # Calculate Initial Margin Used
+    initial_margin_used = actual_lots_used * cost_per_lot
 
     # Display results
     st.header(f"📊 Strategy Analysis at ${worst_case_price:,.0f}")
@@ -178,26 +181,139 @@ if calculate_pressed:
 
         st.info(premium_info)
 
-    # Visualization — show one bar if no options, two if options active
-    if both_options_none:
-        fig = go.Figure(data=[
-            go.Bar(name='Futures Only', x=['Scenario'], y=[total_futures_pnl],
-                   marker_color='firebrick' if total_futures_pnl < 0 else 'green',
-                   text=[f"${total_futures_pnl:,.0f}"], textposition='auto')
-        ])
-        fig.update_layout(title="Portfolio Outcome: Futures Only", yaxis_title="P&L (USD)", template="plotly_white", showlegend=True, height=400)
-    else:
-        fig = go.Figure(data=[
-            go.Bar(name='Futures Only', x=['Scenario'], y=[total_futures_pnl],
-                   marker_color='firebrick' if total_futures_pnl < 0 else 'green',
-                   text=[f"${total_futures_pnl:,.0f}"], textposition='auto'),
-            go.Bar(name='With Options', x=['Scenario'], y=[total_strategy_pnl],
-                   marker_color='red' if total_strategy_pnl < 0 else 'mediumseagreen',
-                   text=[f"${total_strategy_pnl:,.0f}"], textposition='auto')
-        ])
-        fig.update_layout(title="Portfolio Outcome: Futures Only vs With Options", yaxis_title="P&L (USD)", template="plotly_white", showlegend=True, height=400)
+        # Also show Option Intrinsic P&L if non-zero
+        if total_option_payoff != 0:
+            intrinsic_direction = "Loss" if total_option_payoff < 0 else "Gain"
+            st.info(f"📌 **Option Intrinsic P&L**: {intrinsic_direction} of **\\${abs(total_option_payoff):,.0f}** (\\${total_option_payoff_per_ton:,.2f}/ton)")
 
-    st.plotly_chart(fig, use_container_width=True)
+    # ==============================
+    # SIDE-BY-SIDE WATERFALL CHARTS — WITH INITIAL MARGIN + OPTION PAYOFF
+    # ==============================
+    # st.info("""
+    # 💡 **Chart Explanation**:  
+    # These waterfall charts show how your starting capital of **$29,200,000** is allocated and impacted:  
+    # - **Step 1**: Deduct Initial Margin (capital blocked for futures)  
+    # - **Step 2**: Apply Futures P&L  
+    # - **Step 3**: Apply Option Intrinsic P&L (exercise value)  
+    # - **Step 4**: Apply Options Premium Flow (cash received/paid)  
+    # Final bar = Net Liquid Capital Remaining.
+    # """)
+
+    col_chart1, col_chart2 = st.columns(2)
+
+    # ==============================
+    # CHART 1: UNHEDGED (FUTURES ONLY) — WITH MARGIN
+    # ==============================
+    with col_chart1:
+        measure_unhedged = ["absolute", "relative", "relative", "total"]
+        x_unhedged = [
+            "Starting Capital",
+            "Initial Margin (Blocked)",
+            "Futures P&L",
+            "Net Liquid Capital (Unhedged)"
+        ]
+        y_unhedged = [
+            max_capital,
+            -initial_margin_used,  # Deducted
+            total_futures_pnl,     # Gain or loss
+            max_capital - initial_margin_used + total_futures_pnl  # Final available
+        ]
+
+        fig_unhedged = go.Figure(go.Waterfall(
+            name="Unhedged Strategy",
+            orientation="v",
+            measure=measure_unhedged,
+            x=x_unhedged,
+            y=y_unhedged,
+            textposition="outside",
+            text=[f"${val:,.0f}" for val in y_unhedged],
+            connector={"line": {"color": "rgb(63, 63, 63)"}},
+            increasing={"marker": {"color": "lightgreen"}},
+            decreasing={"marker": {"color": "salmon"}},
+            totals={"marker": {"color": "steelblue"}}
+        ))
+
+        fig_unhedged.update_layout(
+            title="📉 Strategy 1: Unhedged (Futures Only)",
+            yaxis_title="USD",
+            template="plotly_white",
+            height=550,
+            showlegend=False
+        )
+
+        st.plotly_chart(fig_unhedged, use_container_width=True)
+
+    # ==============================
+    # CHART 2: HEDGED (FUTURES + OPTIONS) — WITH MARGIN + OPTION PAYOFF
+    # ==============================
+    with col_chart2:
+        if both_options_none:
+            st.warning("⚠️ No options selected. Hedged strategy is identical to unhedged.")
+            st.markdown("### -")
+        else:
+            measure_hedged = ["absolute", "relative", "relative", "relative", "relative", "total"]
+            x_hedged = [
+                "Starting Capital",
+                "Initial Margin (Blocked)",
+                "Futures P&L",
+                "Option Intrinsic P&L",      # 🆕 ADDED — This was missing!
+                "Options Premium Flow",
+                "Net Liquid Capital (Hedged)"
+            ]
+            y_hedged = [
+                max_capital,
+                -initial_margin_used,         # Deducted
+                total_futures_pnl,            # Gain or loss
+                total_option_payoff,          # 🆕 ADDED — Option exercise gain/loss
+                total_premium_flow,           # Premium in/out
+                max_capital - initial_margin_used + total_futures_pnl + total_option_payoff + total_premium_flow  # Final
+            ]
+
+            fig_hedged = go.Figure(go.Waterfall(
+                name="Hedged Strategy",
+                orientation="v",
+                measure=measure_hedged,
+                x=x_hedged,
+                y=y_hedged,
+                textposition="outside",
+                text=[f"${val:,.0f}" for val in y_hedged],
+                connector={"line": {"color": "rgb(63, 63, 63)"}},
+                increasing={"marker": {"color": "mediumseagreen"}},
+                decreasing={"marker": {"color": "firebrick"}},
+                totals={"marker": {"color": "navy"}}
+            ))
+
+            fig_hedged.update_layout(
+                title="📈 Strategy 2: Hedged with Options",
+                yaxis_title="USD",
+                template="plotly_white",
+                height=600,  # Taller to fit extra bar
+                showlegend=False
+            )
+
+            st.plotly_chart(fig_hedged, use_container_width=True)
+
+    # ==============================
+    # INDIVIDUAL RISK WARNINGS — PER STRATEGY
+    # ==============================
+
+    # Calculate final liquid capital for each strategy
+    final_unhedged = max_capital - initial_margin_used + total_futures_pnl
+    final_hedged = max_capital - initial_margin_used + total_futures_pnl + total_option_payoff + total_premium_flow
+
+    # Display warning under Unhedged chart
+    with col_chart1:
+        if final_unhedged < 0:
+            st.error("🚨 **Margin Call Risk (Unhedged)**: Final liquid capital is negative.")
+
+    # Display warning under Hedged chart (only if options are active)
+    with col_chart2:
+        if not both_options_none:
+            if final_hedged < 0:
+                st.error("🚨 **Margin Call Risk (Hedged)**: Final liquid capital is negative.")
+        else:
+            # Already showing "-" — no need to repeat warning
+            pass
 
 else:
     st.info("👈 Configure your strategy in the sidebar, then click **🧮 Calculate P&L** to see the full analysis.")
@@ -206,8 +322,8 @@ st.markdown("---")
 st.markdown("### Connect with Me!")
 
 st.markdown("""
-<a href="https://www.linkedin.com/in/saqif-juhaimee-17322a119/  ">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/c/ca/LinkedIn_logo_initials.png  " width="20">
+<a href="https://www.linkedin.com/in/saqif-juhaimee-17322a119/">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/c/ca/LinkedIn_logo_initials.png" width="20">
     Saqif Juhaimee
 </a>
 """, unsafe_allow_html=True)
