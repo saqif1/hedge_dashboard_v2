@@ -4,14 +4,13 @@ import plotly.graph_objects as go
 # ----------------------------
 # Dashboard Title & Description
 # ----------------------------
-st.set_page_config(page_title="Copper Short Hedge Dashboard", layout="wide")
-st.title("Scenario Analyser on Future Shorts Hedged with Collar Strategy")
+st.set_page_config(page_title="Advanced Options Hedge Dashboard", layout="wide")
+st.title("Advanced Options Strategy Analyser for Futures Positions")
 
 # ----------------------------
 # Sidebar Inputs
 # ----------------------------
-#st.sidebar.image("logo.png")
-st.sidebar.header("Input Parameters")
+st.sidebar.header("Basic Parameters")
 cost_per_lot = st.sidebar.number_input("Initial Margin (USD/lot)", value=20000.0, step=1000.0)
 lot_size_ton = st.sidebar.number_input("Lot Size (Tons)", value=25.0, step=1.0)
 max_capital = st.sidebar.number_input("Max Capital for Futures (USD)", value=29200000.0, step=100000.0)
@@ -20,144 +19,243 @@ max_capital = st.sidebar.number_input("Max Capital for Futures (USD)", value=292
 max_mt = int((max_capital / cost_per_lot) * lot_size_ton)
 
 # Position sizing in MT instead of lots
-st.sidebar.subheader("Position Sizing")
+st.sidebar.subheader("Futures Position")
+futures_position = st.sidebar.radio(
+    "Futures Position Direction",
+    ["Short", "Long"],
+    index=0,
+    help="Choose whether you are short or long futures"
+)
+
 exposure_mt = st.sidebar.number_input(
-    "Short Exposure (Metric Tons)",
+    "Futures Exposure (Metric Tons)",
     min_value=25,  # Minimum 1 lot
     max_value=max_mt,
-    value=min(14000, max_mt),  # Default to 25,000 MT or max, whichever is smaller
-    step=25,  # Step by 1 lot equivalent (25 tons)
+    value=min(14000, max_mt),
+    step=25,
     help=f"Maximum possible based on capital: {max_mt:,} ton"
 )
 
 # Calculate lots from MT exposure
 actual_lots_used = exposure_mt / lot_size_ton
 
-entry_price = st.sidebar.number_input("Futures Entry Price (Short at USD/ton)", value=10130.0, step=10.0)
-worst_case_price = st.sidebar.number_input("Worst Case Price (USD/ton)", value=11550.0, step=10.0)
-
-# Input validation
-if worst_case_price <= entry_price:
-    st.sidebar.warning("Worst case price should be higher than entry price for short position analysis")
-
-# Option parameters — UPDATED FOR COLLAR
-st.sidebar.subheader("Collar Strategy: Buy Call + Sell Put")
-strike_price_call = st.sidebar.number_input("Call Option Strike Price (USD/ton)", value=10500.0, step=50.0)
-premium_call_per_lot = st.sidebar.number_input("Call Option Premium Paid (USD/lot)", value=4454.20, step=10.0)
-premium_call_per_ton = premium_call_per_lot / lot_size_ton
-
-strike_price_put = st.sidebar.number_input("Put Option Strike Price (USD/ton)", value=9270.0, step=50.0)
-premium_put_per_lot = st.sidebar.number_input("Put Option Premium Received (USD/lot)", value=2369.40, step=10.0)
-premium_put_per_ton = premium_put_per_lot / lot_size_ton
-
-# Add strike price validations
-if strike_price_call < entry_price:
-    st.sidebar.warning("⚠️ Call strike below entry — only protects above call strike!")
-if strike_price_put > entry_price:
-    st.sidebar.warning("⚠️ Put strike above entry — exposes you to downside below put strike!")
+entry_price = st.sidebar.number_input("Futures Entry Price (USD/ton)", value=10130.0, step=10.0)
+worst_case_price = st.sidebar.number_input("Scenario Analysis Price (USD/ton)", value=11550.0, step=10.0)
 
 # ----------------------------
-# Calculations
+# OPTIONS STRATEGY CONFIGURATION
+# ----------------------------
+st.sidebar.header("Options Strategy Configuration")
+
+st.sidebar.subheader("Call Option Position")
+call_position = st.sidebar.radio(
+    "Call Option Position",
+    ["None", "Long", "Short"],
+    index=1,
+    help="Choose long (buy), short (sell), or none for call option"
+)
+
+if call_position != "None":
+    strike_price_call = st.sidebar.number_input("Call Option Strike Price (USD/ton)", value=10500.0, step=50.0)
+    premium_call_per_lot = st.sidebar.number_input("Call Option Premium (USD/lot)", value=3279.28, step=10.0)
+    premium_call_per_ton = premium_call_per_lot / lot_size_ton
+else:
+    strike_price_call = 0
+    premium_call_per_lot = 0
+    premium_call_per_ton = 0
+
+st.sidebar.subheader("Put Option Position")
+put_position = st.sidebar.radio(
+    "Put Option Position",
+    ["None", "Long", "Short"],
+    index=2,
+    help="Choose long (buy), short (sell), or none for put option"
+)
+
+if put_position != "None":
+    strike_price_put = st.sidebar.number_input("Put Option Strike Price (USD/ton)", value=9200.0, step=50.0)
+    premium_put_per_lot = st.sidebar.number_input("Put Option Premium (USD/lot)", value=1840.88, step=10.0)
+    premium_put_per_ton = premium_put_per_lot / lot_size_ton
+else:
+    strike_price_put = 0
+    premium_put_per_lot = 0
+    premium_put_per_ton = 0
+
+# ----------------------------
+# DYNAMIC STRATEGY CALCULATIONS
 # ----------------------------
 
 total_tons = exposure_mt
 capital_used = actual_lots_used * cost_per_lot
 
-# Unhedged loss
-loss_per_ton_unhedged = worst_case_price - entry_price
-total_loss_unhedged = loss_per_ton_unhedged * total_tons
+def calculate_option_payoff(price, strike, option_type, position_type):
+    """Calculate option payoff for any combination of option type and position"""
+    if strike == 0:  # No option
+        return 0
+    
+    if option_type == "call":
+        if price > strike:
+            intrinsic_value = price - strike
+        else:
+            intrinsic_value = 0
+    else:  # put
+        if price < strike:
+            intrinsic_value = strike - price
+        else:
+            intrinsic_value = 0
+    
+    # Adjust for position type (long/short)
+    if position_type == "long":
+        return intrinsic_value
+    else:  # short
+        return -intrinsic_value
 
-# Collar strategy calculations
-net_option_premium_per_ton = premium_call_per_ton - premium_put_per_ton
-net_option_premium_per_lot = premium_call_per_lot - premium_put_per_lot
+def calculate_option_premium_flow(position_type, premium_per_ton):
+    """Calculate premium cash flow for option position"""
+    if position_type == "long":
+        return -premium_per_ton  # Pay premium
+    elif position_type == "short":
+        return premium_per_ton   # Receive premium
+    else:
+        return 0
 
-# Initialize variables
-option_gain_call_per_ton = 0
-option_loss_put_per_ton = 0
+# Calculate futures P&L based on position direction
+if futures_position == "Short":
+    futures_pnl_per_ton = entry_price - worst_case_price  # Gain if price falls
+else:  # Long
+    futures_pnl_per_ton = worst_case_price - entry_price  # Gain if price rises
 
-if worst_case_price > strike_price_call:
-    # Call is ITM → gain offsets futures loss
-    option_gain_call_per_ton = worst_case_price - strike_price_call
-    futures_loss_per_ton = worst_case_price - entry_price
-    hedged_loss_per_ton = futures_loss_per_ton - option_gain_call_per_ton + net_option_premium_per_ton
-elif worst_case_price < strike_price_put:
-    # CORRECTED: Put is ITM → you're forced to buy at put strike, which limits your futures gain
-    # Short futures would normally gain: (entry_price - worst_case_price)
-    # But short put loses: (strike_price_put - worst_case_price)
-    # Net effect: (entry_price - strike_price_put)
-    net_futures_put_pnl_per_ton = entry_price - strike_price_put
-    hedged_loss_per_ton = net_futures_put_pnl_per_ton + net_option_premium_per_ton
-    option_loss_put_per_ton = strike_price_put - worst_case_price
-else:
-    # Between strikes → no option payoff, only pay net premium
-    futures_loss_per_ton = worst_case_price - entry_price
-    hedged_loss_per_ton = futures_loss_per_ton + net_option_premium_per_ton
+# Calculate option payoffs
+call_payoff_per_ton = calculate_option_payoff(worst_case_price, strike_price_call, "call", call_position)
+put_payoff_per_ton = calculate_option_payoff(worst_case_price, strike_price_put, "put", put_position)
 
-total_loss_hedged = hedged_loss_per_ton * total_tons
+# Calculate premium flows
+call_premium_flow_per_ton = calculate_option_premium_flow(call_position, premium_call_per_ton)
+put_premium_flow_per_ton = calculate_option_premium_flow(put_position, premium_put_per_ton)
 
-# Calculate effectiveness metrics
-if worst_case_price > strike_price_call:
-    option_intrinsic_value = worst_case_price - strike_price_call
-    protection_effectiveness = option_intrinsic_value / loss_per_ton_unhedged if loss_per_ton_unhedged > 0 else 0
-else:
-    option_intrinsic_value = 0
-    protection_effectiveness = 0
+# Total premium flow
+total_premium_flow_per_ton = call_premium_flow_per_ton + put_premium_flow_per_ton
+
+# Calculate total strategy P&L per ton
+strategy_pnl_per_ton = (futures_pnl_per_ton + call_payoff_per_ton + 
+                        put_payoff_per_ton + total_premium_flow_per_ton)
+
+# Convert to total values
+total_futures_pnl = futures_pnl_per_ton * total_tons
+total_call_payoff = call_payoff_per_ton * total_tons
+total_put_payoff = put_payoff_per_ton * total_tons
+total_premium_flow = total_premium_flow_per_ton * total_tons
+total_strategy_pnl = strategy_pnl_per_ton * total_tons
+
+# For display purposes
+total_pnl_unhedged = total_futures_pnl
+total_pnl_hedged = total_strategy_pnl
+pnl_per_ton_unhedged = futures_pnl_per_ton
+pnl_per_ton_hedged = strategy_pnl_per_ton
 
 # ----------------------------
-# Display Results
+# STRATEGY IDENTIFICATION
 # ----------------------------
 
-st.header(f"📉 Loss Exposure at ${worst_case_price:,.0f} Copper Price")
+def identify_strategy(futures_pos, call_pos, put_pos):
+    """Identify the strategy based on positions"""
+    strategies = {
+        ("Short", "Long", "Short"): "Collar (Protective)",
+        ("Short", "Long", "None"): "Protective Call",
+        ("Short", "None", "Short"): "Covered Put",
+        ("Short", "None", "None"): "Naked Short",
+        ("Long", "Short", "Long"): "Reverse Collar",
+        ("Long", "Short", "None"): "Covered Call",
+        ("Long", "None", "Long"): "Protective Put",
+        ("Long", "None", "None"): "Naked Long"
+    }
+    
+    return strategies.get((futures_pos, call_pos, put_pos), f"Custom {futures_pos} + Options")
+
+current_strategy = identify_strategy(futures_position, call_position, put_position)
+
+# ----------------------------
+# DYNAMIC DISPLAY RESULTS
+# ----------------------------
+
+st.header(f"📊 {current_strategy} Strategy Analysis at ${worst_case_price:,.0f}")
 
 col1, col2, col3 = st.columns(3)
-col1.metric("Short Exposure", f"{exposure_mt:,.0f} ton", f"{actual_lots_used:,.0f} lots")
-col2.metric("Loss/Ton (No Hedge)", f"${loss_per_ton_unhedged:,.0f}", delta="Danger", delta_color="inverse")
-col3.metric("Loss/Ton (With Collar)", f"${hedged_loss_per_ton:,.0f}", delta="Capped", delta_color="normal")
+col1.metric("Futures Exposure", f"{exposure_mt:,.0f} ton", f"{actual_lots_used:,.0f} lots")
+col1.metric("Futures Position", futures_position, f"Entry: ${entry_price:,.0f}")
+
+# Dynamic delta colors and labels
+unhedged_color = "inverse" if futures_pnl_per_ton < 0 else "normal"
+hedged_color = "inverse" if strategy_pnl_per_ton < 0 else "normal"
+
+unhedged_label = "Loss" if futures_pnl_per_ton < 0 else "Gain"
+hedged_label = "Loss" if strategy_pnl_per_ton < 0 else "Gain"
+
+col2.metric("P&L/Ton (Futures Only)", f"${futures_pnl_per_ton:,.0f}", 
+           delta=unhedged_label, delta_color=unhedged_color)
+col3.metric("P&L/Ton (With Options)", f"${strategy_pnl_per_ton:,.0f}", 
+           delta=hedged_label, delta_color=hedged_color)
 
 st.markdown("---")
 
 col4, col5 = st.columns(2)
-col4.metric("Total Loss (Unhedged)", f"${total_loss_unhedged:,.0f}", delta="Margin Call Risk", delta_color="inverse")
-col5.metric("Total Loss (With Collar)", f"${total_loss_hedged:,.0f}", delta="Controlled", delta_color="off")
-
-# Net cost of collar - FIXED CALCULATION
-net_premium_cost_per_ton = net_option_premium_per_ton * total_tons
-net_premium_cost_per_lot = net_option_premium_per_lot * actual_lots_used
-
-st.info(f"""
-💰 **Collar Strategy Cost & Benefit**
-- Paid Premiums for Call: **\\${premium_call_per_lot * actual_lots_used:,.0f}** (\\${premium_call_per_ton:,.2f}/ton)
-- Received Premiums from Put: **\\${premium_put_per_lot * actual_lots_used:,.0f}** (\\${premium_put_per_ton:,.2f}/ton)
-- Net Option Premiums Outlow: **\\${net_premium_cost_per_lot:,.0f}** (\\${net_option_premium_per_ton:,.2f}/ton)
-- You save **\\${total_loss_unhedged - total_loss_hedged:,.0f}**.
-- Total Loss with collar: **\\${total_loss_hedged:,.0f}**
-""")
+col4.metric("Total P&L (Futures Only)", f"${total_futures_pnl:,.0f}", 
+           delta="Unprotected", delta_color=unhedged_color)
+col5.metric("Total P&L (With Options)", f"${total_strategy_pnl:,.0f}", 
+           delta=current_strategy, delta_color="off")
 
 # ----------------------------
-# Visualization
+# OPTIONS PREMIUM BREAKDOWN
+# ----------------------------
+
+premium_info = "💰 **Options Premium Cash Flow**\n"
+
+if call_position != "None":
+    direction = "Paid" if call_position == "Long" else "Received"
+    premium_info += f"- Call Premium {direction}: **\\${premium_call_per_lot * actual_lots_used:,.0f}** (\\${premium_call_per_ton:,.2f}/ton)\n"
+
+if put_position != "None":
+    direction = "Paid" if put_position == "Long" else "Received"
+    premium_info += f"- Put Premium {direction}: **\\${premium_put_per_lot * actual_lots_used:,.0f}** (\\${premium_put_per_ton:,.2f}/ton)\n"
+
+if call_position != "None" or put_position != "None":
+    net_direction = "Net Outflow" if total_premium_flow < 0 else "Net Inflow"
+    premium_info += f"- {net_direction}: **\\${abs(total_premium_flow):,.0f}** (\\${total_premium_flow_per_ton:,.2f}/ton)\n"
+
+if total_strategy_pnl > total_futures_pnl:
+    improvement = total_strategy_pnl - total_futures_pnl
+    premium_info += f"- Options improve outcome by **\\${improvement:,.0f}**"
+else:
+    improvement = total_futures_pnl - total_strategy_pnl
+    premium_info += f"- Options reduce loss by **\\${improvement:,.0f}**"
+
+st.info(premium_info)
+
+# ----------------------------
+# DYNAMIC VISUALIZATION
 # ----------------------------
 
 fig = go.Figure(data=[
     go.Bar(
-        name='Unhedged Loss',
+        name='Futures Only',
         x=['Scenario'],
-        y=[total_loss_unhedged],
-        marker_color='firebrick',
-        text=[f"${total_loss_unhedged:,.0f}"],
+        y=[total_futures_pnl],
+        marker_color='firebrick' if total_futures_pnl < 0 else 'green',
+        text=[f"${total_futures_pnl:,.0f}"],
         textposition='auto'
     ),
     go.Bar(
-        name='Net P&L (Collar)',
+        name=f'With {current_strategy}',
         x=['Scenario'],
-        y=[total_loss_hedged],
-        marker_color='mediumseagreen',
-        text=[f"${total_loss_hedged:,.0f}"],
+        y=[total_strategy_pnl],
+        marker_color='red' if total_strategy_pnl < 0 else 'mediumseagreen',
+        text=[f"${total_strategy_pnl:,.0f}"],
         textposition='auto'
     )
 ])
 fig.update_layout(
-    title="Total Portfolio Outcome: Collar vs Unhedged",
-    yaxis_title="Loss (USD)",
+    title=f"Portfolio Outcome: {current_strategy} vs Futures Only",
+    yaxis_title="P&L (USD)",
     template="plotly_white",
     showlegend=True,
     height=400
@@ -165,94 +263,190 @@ fig.update_layout(
 st.plotly_chart(fig, use_container_width=True)
 
 # ----------------------------
-# Margin Safety Check
+# DYNAMIC MARGIN SAFETY CHECK
 # ----------------------------
 
-st.header("⚠️ Margin Call Risk — CAPITAL AFTER COLLAR")
+st.header("⚠️ Capital Analysis After Scenario")
 
-unhedged_remaining = max_capital - total_loss_unhedged
-hedged_remaining = max_capital - total_loss_hedged
+unhedged_remaining = max_capital + total_futures_pnl
+hedged_remaining = max_capital + total_strategy_pnl
 
 col6, col7 = st.columns(2)
 
 with col6:
-    st.markdown(f"**Breakdown of Strategy 1**: Unhedged Short Futures Position")
+    st.markdown(f"**Strategy 1**: {futures_position} Futures Only")
     st.markdown(f"- Initial Capital: **${max_capital:,.0f}**")
-    st.markdown(f"- Minus Short Futures Loss: **${total_loss_unhedged:,.0f}**")
+    
+    if futures_pnl_per_ton < 0:
+        st.markdown(f"- Futures Loss: **${abs(total_futures_pnl):,.0f}**")
+    else:
+        st.markdown(f"+ Futures Gain: **${total_futures_pnl:,.0f}**")
+    
     st.markdown(f"→ Remaining Capital: **${unhedged_remaining:,.0f}**")
     
     if unhedged_remaining < 0:
-        st.error(f"🚨 WITHOUT HEDGE: Margin call! You're short ${abs(unhedged_remaining):,.0f}")
+        st.error(f"🚨 MARGIN CALL! Shortfall: ${abs(unhedged_remaining):,.0f}")
+    elif futures_pnl_per_ton < 0:
+        st.warning(f"Capital remains: ${unhedged_remaining:,.0f} (Loss)")
     else:
-        st.error(f"WITHOUT HEDGE: ${unhedged_remaining:,.0f} capital buffer remains")
+        st.success(f"Capital remains: ${unhedged_remaining:,.0f} (Gain)")
 
 with col7:
-    st.markdown(f"**Breakdown of Strategy 2**: Short Futures Position + Collar (Call + Put)")
+    st.markdown(f"**Strategy 2**: {current_strategy}")
     st.markdown(f"- Initial Capital: **${max_capital:,.0f}**")
     
-    if worst_case_price > strike_price_call:
-        st.markdown(f"- Short Futures Loss: **${(worst_case_price - entry_price) * total_tons:,.0f}**")
-        st.markdown(f"+ Call Option Gain: **${option_gain_call_per_ton * total_tons:,.0f}**")
-    elif worst_case_price < strike_price_put:
-        st.markdown(f"- Short Futures Gain: **${(entry_price - worst_case_price) * total_tons:,.0f}**")
-        st.markdown(f"- Put Option Loss: **${option_loss_put_per_ton * total_tons:,.0f}**")
-    else:
-        st.markdown(f"- Short Futures Loss: **${(worst_case_price - entry_price) * total_tons:,.0f}**")
+    # Dynamic breakdown
+    components = []
     
-    st.markdown(f"+ Net Option Premium Outflow: **${net_premium_cost_per_lot:,.0f}**")
+    if abs(total_futures_pnl) > 0:
+        direction = "-" if total_futures_pnl < 0 else "+"
+        label = "Loss" if total_futures_pnl < 0 else "Gain"
+        components.append(f"{direction} Futures {label}: **${abs(total_futures_pnl):,.0f}**")
+    
+    if total_call_payoff != 0:
+        direction = "+" if total_call_payoff > 0 else "-"
+        label = "Gain" if total_call_payoff > 0 else "Loss"
+        components.append(f"{direction} Call {label}: **${abs(total_call_payoff):,.0f}**")
+    
+    if total_put_payoff != 0:
+        direction = "+" if total_put_payoff > 0 else "-"
+        label = "Gain" if total_put_payoff > 0 else "Loss"
+        components.append(f"{direction} Put {label}: **${abs(total_put_payoff):,.0f}**")
+    
+    if total_premium_flow != 0:
+        direction = "+" if total_premium_flow > 0 else "-"
+        label = "Inflow" if total_premium_flow > 0 else "Outflow"
+        components.append(f"{direction} Premium {label}: **${abs(total_premium_flow):,.0f}**")
+    
+    for component in components:
+        st.markdown(component)
+    
     st.markdown(f"→ Remaining Capital: **${hedged_remaining:,.0f}**")
     
     if hedged_remaining < 0:
-        st.error(f"🚨 WITH COLLAR: Still a shortfall of ${abs(hedged_remaining):,.0f}")
+        st.error(f"🚨 MARGIN CALL! Shortfall: ${abs(hedged_remaining):,.0f}")
+    elif strategy_pnl_per_ton < 0:
+        st.warning(f"Capital remains: ${hedged_remaining:,.0f} (Reduced Loss)")
     else:
-        st.success(f"WITH COLLAR: ${hedged_remaining:,.0f} capital buffer remains")
+        st.success(f"Capital remains: ${hedged_remaining:,.0f} (Protected)")
 
 # ----------------------------
-# Collar Effectiveness Analysis
+# OPTIONS ANALYSIS
 # ----------------------------
 
-st.header("📊 Collar Effectiveness")
+st.header("📈 Options Position Analysis")
 
-if worst_case_price > strike_price_call:
-    st.success(f"""
-    🛡️ **Call is In-The-Money (ITM)**
-    - Strike: **\\${strike_price_call:,.0f}** vs Market: **\\${worst_case_price:,.0f}**
-    - Intrinsic Value: **\\${option_gain_call_per_ton:,.0f}/ton**
+col8, col9 = st.columns(2)
+
+with col8:
+    if call_position != "None":
+        st.subheader(f"Call Option ({call_position})")
+        if strike_price_call > 0:
+            status = "ITM" if worst_case_price > strike_price_call else "OTM"
+            color = "🟢" if status == "OTM" else "🛡️" if call_position == "Long" else "⚠️"
+            
+            if call_position == "Long":
+                if status == "ITM":
+                    st.success(f"{color} **Protection Active (ITM)**")
+                    st.info(f"Strike: ${strike_price_call:,.0f} | Moneyness: +${worst_case_price - strike_price_call:,.0f}")
+                    st.success(f"Payoff: +${call_payoff_per_ton:,.0f}/ton")
+                else:
+                    st.info(f"{color} **Protection Ready (OTM)**")
+                    st.info(f"Strike: ${strike_price_call:,.0f} | Break-even: ${strike_price_call + premium_call_per_ton:,.0f}")
+            else:  # Short call
+                if status == "ITM":
+                    st.warning(f"{color} **Obligation Active (ITM)**")
+                    st.info(f"Strike: ${strike_price_call:,.0f} | Moneyness: +${worst_case_price - strike_price_call:,.0f}")
+                    st.warning(f"Payoff: -${abs(call_payoff_per_ton):,.0f}/ton")
+                else:
+                    st.success(f"{color} **Premium Collected (OTM)**")
+                    st.info(f"Strike: ${strike_price_call:,.0f} | Safe below: ${strike_price_call:,.0f}")
+    else:
+        st.info("No Call Option Position")
+
+with col9:
+    if put_position != "None":
+        st.subheader(f"Put Option ({put_position})")
+        if strike_price_put > 0:
+            status = "ITM" if worst_case_price < strike_price_put else "OTM"
+            color = "🟢" if status == "OTM" else "🛡️" if put_position == "Long" else "⚠️"
+            
+            if put_position == "Long":
+                if status == "ITM":
+                    st.success(f"{color} **Protection Active (ITM)**")
+                    st.info(f"Strike: ${strike_price_put:,.0f} | Moneyness: +${strike_price_put - worst_case_price:,.0f}")
+                    st.success(f"Payoff: +${put_payoff_per_ton:,.0f}/ton")
+                else:
+                    st.info(f"{color} **Protection Ready (OTM)**")
+                    st.info(f"Strike: ${strike_price_put:,.0f} | Break-even: ${strike_price_put - premium_put_per_ton:,.0f}")
+            else:  # Short put
+                if status == "ITM":
+                    st.warning(f"{color} **Obligation Active (ITM)**")
+                    st.info(f"Strike: ${strike_price_put:,.0f} | Moneyness: +${strike_price_put - worst_case_price:,.0f}")
+                    st.warning(f"Payoff: -${abs(put_payoff_per_ton):,.0f}/ton")
+                else:
+                    st.success(f"{color} **Premium Collected (OTM)**")
+                    st.info(f"Strike: ${strike_price_put:,.0f} | Safe above: ${strike_price_put:,.0f}")
+    else:
+        st.info("No Put Option Position")
+
+# ----------------------------
+# STRATEGY RECOMMENDATION
+# ----------------------------
+
+st.header("🎯 Strategy Assessment")
+
+if total_strategy_pnl > total_futures_pnl:
+    improvement = total_strategy_pnl - total_futures_pnl
+    if hedged_remaining > 0:
+        st.success(f"""
+        ✅ **{current_strategy} Is Effective**
+        - Improves outcome by **\\${improvement:,.0f}** vs futures only
+        - Provides better risk-adjusted returns
+        - Strategy is working as intended
+        """)
+    else:
+        st.warning(f"""
+        ⚠️ **Strategy Helps But Capital Insufficient**
+        - Improves by **\\${improvement:,.0f}** but margin call risk remains
+        - Consider reducing position size
+        """)
+elif total_strategy_pnl == total_futures_pnl:
+    st.info(f"""
+    🔄 **{current_strategy} Is Cost-Neutral**
+    - No significant improvement at current price level
+    - Options are at-the-money or out-of-the-money
+    - Review strike selection or consider alternative strategies
     """)
 else:
-    st.info(f"🟢 **Call is Out-of-the-Money (OTM)** — No payoff.")
-
-if worst_case_price < strike_price_put:
-    st.success(f"""
-    🔒 **Put is In-The-Money (ITM)**
-    - Strike: **\\${strike_price_put:,.0f}** vs Market: **\\${worst_case_price:,.0f}**
-    - You must buy at **\\${strike_price_put:,.0f}**, limiting futures gain
+    deterioration = total_futures_pnl - total_strategy_pnl
+    st.error(f"""
+    ❌ **{current_strategy} Reduces Performance**
+    - Worse outcome by **\\${deterioration:,.0f}** vs futures only
+    - Current options configuration not optimal for this scenario
+    - Suggested: Adjust strikes or reconsider strategy
     """)
-else:
-    st.info(f"🟢 **Put is Out-of-the-Money (OTM)** — No obligation.")
-
-st.caption(f"🎯 Protection Range: **{strike_price_put:,.0f}** to **{strike_price_call:,.0f} USD/ton**")
 
 # ----------------------------
-# Recommendation
+# STRATEGY GUIDE
 # ----------------------------
 
-st.header("🎯 Strategic Recommendation")
-
-if total_loss_hedged < total_loss_unhedged and hedged_remaining > 0:
-    st.success(f"""
-    ✅ **Strong Buy: Collar Is Effective**
-    - Improves your outcome by **\\${total_loss_unhedged - total_loss_hedged:,.0f}** vs unhedged.
-    - Net option flow: **${net_premium_cost_per_lot:,.0f}**.
+with st.expander("📚 Common Strategies Guide"):
+    st.markdown("""
+    **Common Futures + Options Strategies:**
+    
+    **For Short Futures:**
+    - **Collar**: Long Call + Short Put (Protects upside, earns premium)
+    - **Protective Call**: Long Call only (Upside protection)
+    - **Covered Put**: Short Put only (Earn premium, limited downside)
+    
+    **For Long Futures:**
+    - **Reverse Collar**: Short Call + Long Put (Protects downside, earns premium)
+    - **Protective Put**: Long Put only (Downside protection)
+    - **Covered Call**: Short Call only (Earn premium, limited upside)
+    
+    **Customize your strategy by mixing long/short options positions!**
     """)
-elif total_loss_hedged < total_loss_unhedged:
-    st.warning(f"""
-    ⚠️ **Hedge Helps But Capital Is Tight**
-    - You avoid catastrophic moves, but net premium doesn't fully cover losses.
-    → Try: Adjust strikes, reduce size, or increase put premium.
-    """)
-else:
-    st.error("❌ Current collar does not improve outcome — adjust strikes or premiums.")
 
 # ----------------------------
 # Footer Note
