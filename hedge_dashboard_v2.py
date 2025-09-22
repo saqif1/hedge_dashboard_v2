@@ -128,7 +128,7 @@ st.info(f"""
 💰 **Collar Strategy Cost & Benefit**
 - Paid Premiums for Call: **\\${premium_call_per_lot * actual_lots_used:,.0f}** (\\${premium_call_per_ton:,.2f}/ton)
 - Received Premiums from Put: **\\${premium_put_per_lot * actual_lots_used:,.0f}** (\\${premium_put_per_ton:,.2f}/ton)
-- Net Option Premiums Flow: **\\${net_premium_cost_per_lot:,.0f}** (\\${net_option_premium_per_ton:,.2f}/ton)
+- Net Option Premiums Outlow: **\\${net_premium_cost_per_lot:,.0f}** (\\${net_option_premium_per_ton:,.2f}/ton)
 - You save **\\${total_loss_unhedged - total_loss_hedged:,.0f}**.
 - Total Loss with collar: **\\${total_loss_hedged:,.0f}**
 """)
@@ -199,7 +199,7 @@ with col7:
     else:
         st.markdown(f"- Short Futures Loss: **${(worst_case_price - entry_price) * total_tons:,.0f}**")
     
-    st.markdown(f"+ Net Option Premium Flow: **${net_premium_cost_per_lot:,.0f}**")
+    st.markdown(f"+ Net Option Premium Outflow: **${net_premium_cost_per_lot:,.0f}**")
     st.markdown(f"→ Remaining Capital: **${hedged_remaining:,.0f}**")
     
     if hedged_remaining < 0:
