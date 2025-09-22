@@ -112,13 +112,13 @@ st.header(f"📉 Loss Exposure at ${worst_case_price:,.0f} Copper Price")
 col1, col2, col3 = st.columns(3)
 col1.metric("Short Exposure", f"{exposure_mt:,.0f} ton", f"{actual_lots_used:,.0f} lots")
 col2.metric("Loss/Ton (No Hedge)", f"${loss_per_ton_unhedged:,.0f}", delta="Danger", delta_color="inverse")
-col3.metric("P&L/Ton (With Collar)", f"${hedged_loss_per_ton:,.0f}", delta="Capped", delta_color="normal")
+col3.metric("Loss/Ton (With Collar)", f"${hedged_loss_per_ton:,.0f}", delta="Capped", delta_color="normal")
 
 st.markdown("---")
 
 col4, col5 = st.columns(2)
 col4.metric("Total Loss (Unhedged)", f"${total_loss_unhedged:,.0f}", delta="Margin Call Risk", delta_color="inverse")
-col5.metric("Net P&L (With Collar)", f"${total_loss_hedged:,.0f}", delta="Controlled", delta_color="off")
+col5.metric("Total Loss (With Collar)", f"${total_loss_hedged:,.0f}", delta="Controlled", delta_color="off")
 
 # Net cost of collar - FIXED CALCULATION
 net_premium_cost_per_ton = net_option_premium_per_ton * total_tons
@@ -130,7 +130,7 @@ st.info(f"""
 - Received Premiums from Put: **\\${premium_put_per_lot * actual_lots_used:,.0f}** (\\${premium_put_per_ton:,.2f}/ton)
 - Net Option Premiums Flow: **\\${net_premium_cost_per_lot:,.0f}** (\\${net_option_premium_per_ton:,.2f}/ton)
 - You save **\\${total_loss_unhedged - total_loss_hedged:,.0f}**.
-- Total net P&L with collar: **\\${total_loss_hedged:,.0f}**
+- Total Loss with collar: **\\${total_loss_hedged:,.0f}**
 """)
 
 # ----------------------------
@@ -157,7 +157,7 @@ fig = go.Figure(data=[
 ])
 fig.update_layout(
     title="Total Portfolio Outcome: Collar vs Unhedged",
-    yaxis_title="P&L (USD)",
+    yaxis_title="Loss (USD)",
     template="plotly_white",
     showlegend=True,
     height=400
@@ -187,7 +187,7 @@ with col6:
         st.error(f"WITHOUT HEDGE: ${unhedged_remaining:,.0f} capital buffer remains")
 
 with col7:
-    st.markdown(f"**Breakdown of Strategy 2**: Short Futures + Collar (Call + Put)")
+    st.markdown(f"**Breakdown of Strategy 2**: Short Futures Position + Collar (Call + Put)")
     st.markdown(f"- Initial Capital: **${max_capital:,.0f}**")
     
     if worst_case_price > strike_price_call:
