@@ -150,14 +150,14 @@ if calculate_pressed:
         col1.metric(
             "Futures Position",
             futures_position,
-            delta="↑ Entry Price: ${entry_price:,.0f}",
+            delta=f"↑ Entry Price: ${entry_price:,.0f}",
             delta_color="normal"  # Green
         )
     else:  # Short
         col1.metric(
             "Futures Position",
             futures_position,
-            delta="↓ Entry Price: ${entry_price:,.0f}",
+            delta=f"↓ Entry Price: ${entry_price:,.0f}",
             delta_color="inverse"  # Red
         )
 
