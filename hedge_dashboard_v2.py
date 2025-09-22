@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 # Dashboard Title & Description
 # ----------------------------
 st.set_page_config(page_title="Copper Short Hedge Dashboard", layout="wide")
-st.title("Margin Call Risk Manager for Copper Futures Shorts")
+st.title("Scenario Analyser on Future Shorts Hedged with Call Option")
 
 # ----------------------------
 # Sidebar Inputs
