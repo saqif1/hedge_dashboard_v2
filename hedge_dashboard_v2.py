@@ -43,11 +43,11 @@ if worst_case_price <= entry_price:
 # Option parameters — UPDATED FOR COLLAR
 st.sidebar.subheader("Collar Strategy: Buy Call + Sell Put")
 strike_price_call = st.sidebar.number_input("Call Option Strike Price (USD/ton)", value=10500.0, step=50.0)
-premium_call_per_lot = st.sidebar.number_input("Call Option Premium Paid (USD/lot)", value=3279.28, step=10.0)
+premium_call_per_lot = st.sidebar.number_input("Call Option Premium Paid (USD/lot)", value=4454.20, step=10.0)
 premium_call_per_ton = premium_call_per_lot / lot_size_ton
 
-strike_price_put = st.sidebar.number_input("Put Option Strike Price (USD/ton)", value=9200.0, step=50.0)
-premium_put_per_lot = st.sidebar.number_input("Put Option Premium Received (USD/lot)", value=1840.88, step=10.0)
+strike_price_put = st.sidebar.number_input("Put Option Strike Price (USD/ton)", value=9270.0, step=50.0)
+premium_put_per_lot = st.sidebar.number_input("Put Option Premium Received (USD/lot)", value=2369.40, step=10.0)
 premium_put_per_ton = premium_put_per_lot / lot_size_ton
 
 # Add strike price validations
