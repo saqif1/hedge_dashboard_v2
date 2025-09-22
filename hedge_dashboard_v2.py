@@ -145,7 +145,23 @@ if calculate_pressed:
 
     col1, col2, col3 = st.columns(3)
     col1.metric("Futures Exposure", f"{exposure_mt:,.0f} ton", f"{actual_lots_used:,.0f} lots")
-    col1.metric("Futures Position", futures_position, f"Entry: ${entry_price:,.0f}")
+    # Show directional arrow and color based on position
+    if futures_position == "Long":
+        col1.metric(
+            "Futures Position",
+            futures_position,
+            delta="↑ Long",
+            delta_color="normal",  # Green
+            help=f"Entry Price: ${entry_price:,.0f}"
+        )
+    else:  # Short
+        col1.metric(
+            "Futures Position",
+            futures_position,
+            delta="↓ Short",
+            delta_color="inverse",  # Red
+            help=f"Entry Price: ${entry_price:,.0f}"
+        )
 
     unhedged_color = "inverse" if futures_pnl_per_ton < 0 else "normal"
 
