@@ -130,7 +130,7 @@ if calculate_pressed:
 
     # Convert to totals
     total_futures_pnl = futures_pnl_per_ton * total_tons
-    total_option_payoff = total_option_payoff_per_ton * total_tons  # 🆕 This is the missing piece!
+    total_option_payoff = total_option_payoff_per_ton * total_tons
     total_premium_flow = total_premium_flow_per_ton * total_tons
     total_strategy_pnl = strategy_pnl_per_ton * total_tons
 
@@ -189,16 +189,6 @@ if calculate_pressed:
     # ==============================
     # SIDE-BY-SIDE WATERFALL CHARTS — WITH INITIAL MARGIN + OPTION PAYOFF
     # ==============================
-    # st.info("""
-    # 💡 **Chart Explanation**:  
-    # These waterfall charts show how your starting capital of **$29,200,000** is allocated and impacted:  
-    # - **Step 1**: Deduct Initial Margin (capital blocked for futures)  
-    # - **Step 2**: Apply Futures P&L  
-    # - **Step 3**: Apply Option Intrinsic P&L (exercise value)  
-    # - **Step 4**: Apply Options Premium Flow (cash received/paid)  
-    # Final bar = Net Liquid Capital Remaining.
-    # """)
-
     col_chart1, col_chart2 = st.columns(2)
 
     # ==============================
@@ -214,9 +204,9 @@ if calculate_pressed:
         ]
         y_unhedged = [
             max_capital,
-            -initial_margin_used,  # Deducted
-            total_futures_pnl,     # Gain or loss
-            max_capital - initial_margin_used + total_futures_pnl  # Final available
+            -initial_margin_used,
+            total_futures_pnl,
+            max_capital - initial_margin_used + total_futures_pnl
         ]
 
         fig_unhedged = go.Figure(go.Waterfall(
@@ -243,6 +233,11 @@ if calculate_pressed:
 
         st.plotly_chart(fig_unhedged, use_container_width=True)
 
+        # # Risk warning under chart
+        # final_unhedged = max_capital - initial_margin_used + total_futures_pnl
+        # if final_unhedged < 0:
+        #     st.error("🚨 **Margin Call Risk (Unhedged)**: Final liquid capital is negative.")
+
     # ==============================
     # CHART 2: HEDGED (FUTURES + OPTIONS) — WITH MARGIN + OPTION PAYOFF
     # ==============================
@@ -256,17 +251,17 @@ if calculate_pressed:
                 "Starting Capital",
                 "Initial Margin (Blocked)",
                 "Futures P&L",
-                "Option Intrinsic P&L",      # 🆕 ADDED — This was missing!
+                "Option Intrinsic P&L",
                 "Options Premium Flow",
                 "Net Liquid Capital (Hedged)"
             ]
             y_hedged = [
                 max_capital,
-                -initial_margin_used,         # Deducted
-                total_futures_pnl,            # Gain or loss
-                total_option_payoff,          # 🆕 ADDED — Option exercise gain/loss
-                total_premium_flow,           # Premium in/out
-                max_capital - initial_margin_used + total_futures_pnl + total_option_payoff + total_premium_flow  # Final
+                -initial_margin_used,
+                total_futures_pnl,
+                total_option_payoff,
+                total_premium_flow,
+                max_capital - initial_margin_used + total_futures_pnl + total_option_payoff + total_premium_flow
             ]
 
             fig_hedged = go.Figure(go.Waterfall(
@@ -287,33 +282,54 @@ if calculate_pressed:
                 title="📈 Strategy 2: Hedged with Options",
                 yaxis_title="USD",
                 template="plotly_white",
-                height=600,  # Taller to fit extra bar
+                height=600,
                 showlegend=False
             )
 
             st.plotly_chart(fig_hedged, use_container_width=True)
 
-    # ==============================
-    # INDIVIDUAL RISK WARNINGS — PER STRATEGY
-    # ==============================
+            # # Risk warning under chart
+            # final_hedged = max_capital - initial_margin_used + total_futures_pnl + total_option_payoff + total_premium_flow
+            # if final_hedged < 0:
+            #     st.error("🚨 **Margin Call Risk (Hedged)**: Final liquid capital is negative.")
 
-    # Calculate final liquid capital for each strategy
+    # ==============================
+    # NET LIQUID CASH METRICS — UNDER GRAPHS
+    # ==============================
+    st.markdown("---")
+    st.subheader("🏦 Net Liquid Cash Remaining After Scenario")
+
+    col_net1, col_net2 = st.columns(2)
+
     final_unhedged = max_capital - initial_margin_used + total_futures_pnl
-    final_hedged = max_capital - initial_margin_used + total_futures_pnl + total_option_payoff + total_premium_flow
 
-    # Display warning under Unhedged chart
-    with col_chart1:
+    with col_net1:
+        st.metric(
+            "Net Liquid Cash (Unhedged)",
+            f"${final_unhedged:,.0f}",
+            delta=None,
+            delta_color="inverse" if final_unhedged < 0 else "normal"
+        )
+        # Risk warning under chart
+        final_unhedged = max_capital - initial_margin_used + total_futures_pnl
         if final_unhedged < 0:
             st.error("🚨 **Margin Call Risk (Unhedged)**: Final liquid capital is negative.")
 
-    # Display warning under Hedged chart (only if options are active)
-    with col_chart2:
+    with col_net2:
         if not both_options_none:
+            final_hedged = max_capital - initial_margin_used + total_futures_pnl + total_option_payoff + total_premium_flow
+            st.metric(
+                "Net Liquid Cash (Hedged)",
+                f"${final_hedged:,.0f}",
+                delta=None,
+                delta_color="inverse" if final_hedged < 0 else "normal"
+            )
+            # Risk warning under chart
+            final_hedged = max_capital - initial_margin_used + total_futures_pnl + total_option_payoff + total_premium_flow
             if final_hedged < 0:
                 st.error("🚨 **Margin Call Risk (Hedged)**: Final liquid capital is negative.")
         else:
-            # Already showing "-" — no need to repeat warning
-            pass
+            st.metric("Net Liquid Cash (Hedged)", "-")
 
 else:
     st.info("👈 Configure your strategy in the sidebar, then click **🧮 Calculate P&L** to see the full analysis.")
