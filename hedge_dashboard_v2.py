@@ -161,7 +161,7 @@ if calculate_pressed:
             premium_info += f"- Option {idx} ({opt['type'].capitalize()}): {direction} **\\${opt['premium_per_lot'] * actual_lots_used:,.0f}** (\\${opt['premium_per_ton']:,.2f}/ton)\n"
 
     net_direction = "Net Outflow" if total_premium_flow < 0 else "Net Inflow"
-    premium_info += f"- {net_direction}: **\\${abs(total_premium_flow):,.0f}** (\\${total_premium_flow_per_ton:,.2f}/ton)\n"
+    premium_info += f"- {net_direction}: **\\${abs(total_premium_flow):,.0f}** (\\${abs(total_premium_flow_per_ton):,.2f}/ton)\n"
 
     st.info(premium_info)
 
