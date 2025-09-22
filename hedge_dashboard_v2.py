@@ -183,7 +183,7 @@ with col7:
     st.markdown(f"- Minus Short Futures Loss: **${total_loss_unhedged:,.0f}**")
     if worst_case_price > strike_price_call:
         st.markdown(f"- Add Call Intrinsic Gain: **${(option_gain_call_per_ton * total_tons):,.0f}**")
-    st.markdown(f"- Net Option Premium Flow: **${net_premium_cost:,.0f}**")
+    st.markdown(f"- Add Net Option Premium Flow: **${net_premium_cost:,.0f}**")
     st.markdown(f"→ Remaining Capital: **${hedged_remaining:,.0f}**")
     
     if hedged_remaining < 0:
