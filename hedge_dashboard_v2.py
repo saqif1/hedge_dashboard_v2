@@ -184,7 +184,7 @@ with col6:
     if unhedged_remaining < 0:
         st.error(f"🚨 WITHOUT HEDGE: Margin call! You're short ${abs(unhedged_remaining):,.0f}")
     else:
-        st.success(f"WITHOUT HEDGE: ${unhedged_remaining:,.0f} capital buffer remains")
+        st.error(f"WITHOUT HEDGE: ${unhedged_remaining:,.0f} capital buffer remains")
 
 with col7:
     st.markdown(f"**Breakdown of Strategy 2**: Short Futures + Collar (Call + Put)")
