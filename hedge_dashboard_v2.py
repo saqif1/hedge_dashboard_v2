@@ -43,10 +43,12 @@ if worst_case_price <= entry_price:
 # Option parameters — UPDATED FOR COLLAR
 st.sidebar.subheader("Collar Strategy: Buy Call + Sell Put")
 strike_price_call = st.sidebar.number_input("Call Option Strike Price (USD/ton)", value=10500.0, step=50.0)
-premium_call_per_ton = st.sidebar.number_input("Call Option Premium Paid (USD/ton)", value=200.0, step=10.0)
+premium_call_per_ton = st.sidebar.number_input("Call Option Premium Paid (USD/lot)", value=4151.64, step=10.0)
+premium_call_per_ton = premium_call_per_ton/lot_size_ton
 
 strike_price_put = st.sidebar.number_input("Put Option Strike Price (USD/ton)", value=9500.0, step=50.0)
-premium_put_per_ton = st.sidebar.number_input("Put Option Premium Received (USD/ton)", value=150.0, step=10.0)
+premium_put_per_ton = st.sidebar.number_input("Put Option Premium Received (USD/lot)", value=1840.88, step=10.0)
+premium_put_per_ton = premium_put_per_ton/lot_size_ton
 
 # Add strike price validations
 if strike_price_call < entry_price:
@@ -70,6 +72,7 @@ net_option_premium_per_ton = premium_call_per_ton - premium_put_per_ton
 
 # Initialize variables
 option_gain_call_per_ton = 0
+option_loss_put_per_ton = 0
 
 if worst_case_price > strike_price_call:
     # Call is ITM → gain offsets futures loss
@@ -77,10 +80,13 @@ if worst_case_price > strike_price_call:
     futures_loss_per_ton = worst_case_price - entry_price
     hedged_loss_per_ton = futures_loss_per_ton - option_gain_call_per_ton + net_option_premium_per_ton
 elif worst_case_price < strike_price_put:
-    # Put is ITM → you're forced to sell at put strike
-    effective_market_price = strike_price_put
-    futures_loss_per_ton = effective_market_price - entry_price
-    hedged_loss_per_ton = futures_loss_per_ton + net_option_premium_per_ton
+    # CORRECTED: Put is ITM → you're forced to buy at put strike, which limits your futures gain
+    # Short futures would normally gain: (entry_price - worst_case_price)
+    # But short put loses: (strike_price_put - worst_case_price)
+    # Net effect: (entry_price - strike_price_put)
+    net_futures_put_pnl_per_ton = entry_price - strike_price_put
+    hedged_loss_per_ton = net_futures_put_pnl_per_ton + net_option_premium_per_ton
+    option_loss_put_per_ton = strike_price_put - worst_case_price
 else:
     # Between strikes → no option payoff, only pay net premium
     futures_loss_per_ton = worst_case_price - entry_price
@@ -105,13 +111,13 @@ st.header(f"📉 Loss Exposure at ${worst_case_price:,.0f} Copper Price")
 col1, col2, col3 = st.columns(3)
 col1.metric("Short Exposure", f"{exposure_mt:,.0f} ton", f"{actual_lots_used:,.0f} lots")
 col2.metric("Loss/Ton (No Hedge)", f"${loss_per_ton_unhedged:,.0f}", delta="Danger", delta_color="inverse")
-col3.metric("Loss/Ton (With Collar)", f"${hedged_loss_per_ton:,.0f}", delta="Capped", delta_color="normal")
+col3.metric("P&L/Ton (With Collar)", f"${hedged_loss_per_ton:,.0f}", delta="Capped", delta_color="normal")
 
 st.markdown("---")
 
 col4, col5 = st.columns(2)
 col4.metric("Total Loss (Unhedged)", f"${total_loss_unhedged:,.0f}", delta="Margin Call Risk", delta_color="inverse")
-col5.metric("Total Loss (With Collar)", f"${total_loss_hedged:,.0f}", delta="Controlled", delta_color="off")
+col5.metric("Net P&L (With Collar)", f"${total_loss_hedged:,.0f}", delta="Controlled", delta_color="off")
 
 # Net cost of collar
 net_premium_cost = net_option_premium_per_ton * total_tons
@@ -120,8 +126,8 @@ st.info(f"""
 - Paid for Call: **${premium_call_per_ton * total_tons:,.0f}**
 - Received from Put: **${premium_put_per_ton * total_tons:,.0f}**
 - Net Option Flow: **${net_premium_cost:,.0f}** (positive = cash inflow!)
-- Your loss is reduced by **\\${total_loss_unhedged - total_loss_hedged:,.0f}**.
-- Total cash outflow with collar: **\\${total_loss_hedged:,.0f}**
+- Your outcome changed by **\\${total_loss_unhedged - total_loss_hedged:,.0f}**.
+- Total net P&L with collar: **\\${total_loss_hedged:,.0f}**
 """)
 
 # ----------------------------
@@ -138,7 +144,7 @@ fig = go.Figure(data=[
         textposition='auto'
     ),
     go.Bar(
-        name='Hedged Loss (Collar)',
+        name='Net P&L (Collar)',
         x=['Scenario'],
         y=[total_loss_hedged],
         marker_color='mediumseagreen',
@@ -147,8 +153,8 @@ fig = go.Figure(data=[
     )
 ])
 fig.update_layout(
-    title="Total Portfolio Loss: Collar vs Unhedged",
-    yaxis_title="Loss (USD)",
+    title="Total Portfolio Outcome: Collar vs Unhedged",
+    yaxis_title="P&L (USD)",
     template="plotly_white",
     showlegend=True,
     height=400
@@ -180,10 +186,17 @@ with col6:
 with col7:
     st.markdown(f"**Breakdown of Strategy 2**: Short Futures + Collar (Call + Put)")
     st.markdown(f"- Initial Capital: **${max_capital:,.0f}**")
-    st.markdown(f"- Minus Short Futures Loss: **${total_loss_unhedged:,.0f}**")
+    
     if worst_case_price > strike_price_call:
-        st.markdown(f"- Add Call Intrinsic Gain: **${(option_gain_call_per_ton * total_tons):,.0f}**")
-    st.markdown(f"- Add Net Option Premium Flow: **${net_premium_cost:,.0f}**")
+        st.markdown(f"- Short Futures Loss: **${(worst_case_price - entry_price) * total_tons:,.0f}**")
+        st.markdown(f"+ Call Option Gain: **${option_gain_call_per_ton * total_tons:,.0f}**")
+    elif worst_case_price < strike_price_put:
+        st.markdown(f"- Short Futures Gain: **${(entry_price - worst_case_price) * total_tons:,.0f}**")
+        st.markdown(f"- Put Option Loss: **${option_loss_put_per_ton * total_tons:,.0f}**")
+    else:
+        st.markdown(f"- Short Futures Loss: **${(worst_case_price - entry_price) * total_tons:,.0f}**")
+    
+    st.markdown(f"+ Net Option Premium Flow: **${net_premium_cost:,.0f}**")
     st.markdown(f"→ Remaining Capital: **${hedged_remaining:,.0f}**")
     
     if hedged_remaining < 0:
@@ -210,7 +223,7 @@ if worst_case_price < strike_price_put:
     st.success(f"""
     🔒 **Put is In-The-Money (ITM)**
     - Strike: **\\${strike_price_put:,.0f}** vs Market: **\\${worst_case_price:,.0f}**
-    - Downside capped at **\\${strike_price_put:,.0f}**
+    - You must buy at **\\${strike_price_put:,.0f}**, limiting futures gain
     """)
 else:
     st.info(f"🟢 **Put is Out-of-the-Money (OTM)** — No obligation.")
@@ -226,8 +239,8 @@ st.header("🎯 Strategic Recommendation")
 if total_loss_hedged < total_loss_unhedged and hedged_remaining > 0:
     st.success(f"""
     ✅ **Strong Buy: Collar Is Effective**
-    - Caps your loss at **\\${hedged_loss_per_ton:,.0f}/ton** instead of **\\${loss_per_ton_unhedged:,.0f}/ton**.
-    - Net option flow: **${net_premium_cost:,.0f}** (you may even earn money).
+    - Improves your outcome by **\\${total_loss_unhedged - total_loss_hedged:,.0f}** vs unhedged.
+    - Net option flow: **${net_premium_cost:,.0f}**.
     """)
 elif total_loss_hedged < total_loss_unhedged:
     st.warning(f"""
