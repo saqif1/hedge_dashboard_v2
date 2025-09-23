@@ -11,7 +11,7 @@ st.title("Advanced Options Strategy Analyser for Futures Positions")
 # Sidebar Inputs
 # ----------------------------
 st.sidebar.header("Basic Parameters")
-cost_per_lot = st.sidebar.number_input("Initial Margin (USD/lot)", value=4000.0, step=1000.0)
+#cost_per_lot = st.sidebar.number_input("Initial Margin (USD/lot)", value=4000.0, step=1000.0)
 lot_size_ton = st.sidebar.number_input("Lot Size (Tons)", value=25.0, step=1.0)
 max_capital = st.sidebar.number_input("Max Capital for Futures (USD)", value=5840000.0, step=100000.0)
 
@@ -26,6 +26,8 @@ futures_position = st.sidebar.radio(
     index=0,
     help="Choose whether you are short or long futures"
 )
+
+cost_per_lot = st.sidebar.number_input("Initial Margin (USD/lot)", value=4000.0, step=1000.0)
 
 exposure_mt = st.sidebar.number_input(
     "Futures Exposure (Metric Tons)",
