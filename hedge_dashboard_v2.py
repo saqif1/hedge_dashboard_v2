@@ -11,9 +11,9 @@ st.title("Advanced Options Strategy Analyser for Futures Positions")
 # Sidebar Inputs
 # ----------------------------
 st.sidebar.header("Basic Parameters")
-cost_per_lot = st.sidebar.number_input("Initial Margin (USD/lot)", value=20000.0, step=1000.0)
+cost_per_lot = st.sidebar.number_input("Initial Margin (USD/lot)", value=4000.0, step=1000.0)
 lot_size_ton = st.sidebar.number_input("Lot Size (Tons)", value=25.0, step=1.0)
-max_capital = st.sidebar.number_input("Max Capital for Futures (USD)", value=29200000.0, step=100000.0)
+max_capital = st.sidebar.number_input("Max Capital for Futures (USD)", value=5840000.0, step=100000.0)
 
 # Calculate maximum possible MT based on capital
 max_mt = int((max_capital / cost_per_lot) * lot_size_ton)
@@ -31,7 +31,7 @@ exposure_mt = st.sidebar.number_input(
     "Futures Exposure (Metric Tons)",
     min_value=25,  # Minimum 1 lot
     max_value=max_mt,
-    value=min(14000, max_mt),
+    value=min(2800, max_mt),
     step=25,
     help=f"Maximum possible based on capital: {max_mt:,} ton"
 )
@@ -39,8 +39,8 @@ exposure_mt = st.sidebar.number_input(
 # Calculate lots from MT exposure
 actual_lots_used = exposure_mt / lot_size_ton
 
-entry_price = st.sidebar.number_input("Futures Entry Price (USD/ton)", value=10130.0, step=10.0)
-worst_case_price = st.sidebar.number_input("Scenario Analysis Price (USD/ton)", value=11550.0, step=10.0)
+entry_price = st.sidebar.number_input("Futures Entry Price (USD/ton)", value=2026.0, step=10.0)
+worst_case_price = st.sidebar.number_input("Scenario Analysis Price (USD/ton)", value=2310.0, step=10.0)
 
 # ----------------------------
 # OPTIONS STRATEGY CONFIGURATION
